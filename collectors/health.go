@@ -513,17 +513,6 @@ func (c *ClusterHealthCollector) collect() error {
 		}
 	}
 
-	switch stats.Health.OverallStatus {
-	case CephHealthOK:
-		c.HealthStatus.Set(0)
-	case CephHealthWarn:
-		c.HealthStatus.Set(1)
-	case CephHealthErr:
-		c.HealthStatus.Set(2)
-	default:
-		c.HealthStatus.Set(2)
-	}
-
 	osdsUp, err := stats.OSDMap.OSDMap.NumUpOSDs.Float64()
 	if err != nil {
 		return err
@@ -623,6 +612,15 @@ func (c *ClusterHealthCollector) collectRecoveryClientIO() error {
 		line := strings.TrimSpace(sc.Text())
 
 		switch {
+		case strings.Contains(line, "health: "):
+			switch {
+			case strings.Contains(line, "ERR"):
+				c.HealthStatus.Set(2)
+			case strings.Contains(line, "WARN"):
+				c.HealthStatus.Set(1)
+			case strings.Contains(line, "OK"):
+				c.HealthStatus.Set(0)
+			}
 		case strings.HasPrefix(line, "recovery"):
 			if err := c.collectRecoveryIO(line); err != nil {
 				return err
